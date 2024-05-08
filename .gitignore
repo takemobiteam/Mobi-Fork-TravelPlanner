@@ -1,6 +1,6 @@
 
 *.pyc
-*.ipynb
+# *.ipynb
 utils/.DS_Store
 database/.DS_Store
 annotation/.DS_Store
