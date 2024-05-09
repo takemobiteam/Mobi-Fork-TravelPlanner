@@ -30,6 +30,25 @@ class Restaurants:
         if len(results) == 0:
             return "There is no restaurant in this city."
         return results
+    
+    def run_for_mobi(self,
+            city: str,
+            ) -> DataFrame:
+        """Search for restaurant ."""
+        results = self.data[self.data["City"] == city]
+        # results = results[results["date"] == date]
+        # if price_order == "asc":
+        #     results = results.sort_values(by=["Average Cost"], ascending=True)
+        # elif price_order == "desc": 
+        #     results = results.sort_values(by=["Average Cost"], ascending=False)
+
+        # if rating_order == "asc":
+        #     results = results.sort_values(by=["Aggregate Rating"], ascending=True)
+        # elif rating_order == "desc":
+        #     results = results.sort_values(by=["Aggregate Rating"], ascending=False)
+        if len(results) == 0:
+            return None
+        return results
 
     def run_for_annotation(self,
             city: str,

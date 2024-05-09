@@ -40,6 +40,32 @@ class Flights:
             return "There is no flight from {} to {} on {}.".format(origin, destination, departure_date)
         return results
     
+    
+    def run_for_mobi(self,
+            origin: str,
+            destination: str,
+            departure_date: str,
+            ) -> DataFrame:
+        """Search for flights by origin, destination, and departure date."""
+        results = self.data[self.data["OriginCityName"] == origin]
+        results = results[results["DestCityName"] == destination]
+        results = results[results["FlightDate"] == departure_date]
+        # if order == "ascPrice":
+        #     results = results.sort_values(by=["Price"], ascending=True)
+        # elif order == "descPrice":
+        #     results = results.sort_values(by=["Price"], ascending=False)
+        # elif order == "ascDepTime":
+        #     results = results.sort_values(by=["DepTime"], ascending=True)
+        # elif order == "descDepTime":
+        #     results = results.sort_values(by=["DepTime"], ascending=False)
+        # elif order == "ascArrTime":
+        #     results = results.sort_values(by=["ArrTime"], ascending=True)
+        # elif order == "descArrTime":
+        #     results = results.sort_values(by=["ArrTime"], ascending=False)
+        if len(results) == 0:
+            return None
+        return results
+    
     def run_for_annotation(self,
             origin: str,
             destination: str,

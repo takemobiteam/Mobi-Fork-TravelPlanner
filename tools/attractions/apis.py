@@ -23,7 +23,18 @@ class Attractions:
         if len(results) == 0:
             return "There is no attraction in this city."
         return results  
-      
+    
+    def run_for_mobi(self,
+            city: str,
+            ) -> DataFrame:
+        """Search for Accommodations by city and date."""
+        results = self.data[self.data["City"] == city]
+        # the results should show the index
+        results = results.reset_index(drop=True)
+        if len(results) == 0:
+            return None
+        return results  
+    
     def run_for_annotation(self,
             city: str,
             ) -> DataFrame:

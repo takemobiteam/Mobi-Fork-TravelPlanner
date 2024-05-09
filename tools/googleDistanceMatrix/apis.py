@@ -36,6 +36,28 @@ class GoogleDistanceMatrix:
 
         return f"{mode}, from {origin} to {destination}, no valid information."   
     
+    
+    def run_for_mobi(self, origin, destination, mode) -> dict:
+        assert mode in ("Self-driving", "Taxi")
+        origin = extract_before_parenthesis(origin)
+        destination = extract_before_parenthesis(destination)
+        info = {"origin": origin, "destination": destination,"cost": None, "duration": None, "distance": None}
+        response = self.data[(self.data['origin'] == origin) & (self.data['destination'] == destination)]
+        if len(response) > 0:
+                if response['duration'].values[0] is None or response['distance'].values[0] is None or response['duration'].values[0] is np.nan or response['distance'].values[0] is np.nan:
+                    return None
+                info["duration"] = response['duration'].values[0]
+                info["distance"] = response['distance'].values[0]
+                if mode == "Self-driving":
+                    info["cost"] = int(eval(info["distance"].replace("km","").replace(",","")) * 0.05)
+                elif mode == "Taxi":
+                    info["cost"] = int(eval(info["distance"].replace("km","").replace(",","")))
+                if 'day' in info["duration"]:
+                    return None
+                return info
+        return None
+    
+    
     def run_for_evaluation(self, origin, destination, mode='driving'):
         origin = extract_before_parenthesis(origin)
         destination = extract_before_parenthesis(destination)

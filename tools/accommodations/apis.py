@@ -23,6 +23,16 @@ class Accommodations:
         
         return results
     
+    def run_for_mobi(self,
+            city: str,
+            ) -> DataFrame:
+        """Search for accommodations by city."""
+        results = self.data[self.data["city"] == city]
+        if len(results) == 0:
+            return None
+
+        return results
+    
     def run_for_annotation(self,
             city: str,
             ) -> DataFrame:
