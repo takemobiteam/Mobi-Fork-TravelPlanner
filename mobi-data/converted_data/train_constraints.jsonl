@@ -1,1 +1,1 @@
-{"cuisine": ["Indian", "Italian", "Chinese", "American", "Mexican", "French", "Mediterranean"], "house rule": ["parties", "children under 10", "pets", "visitors", "smoking"], "room type": ["entire room", "private room"], "transportation": ["no self-driving", "no flight"]}
+{"cuisine": ["American", "Mediterranean", "Mexican", "Indian", "Italian", "French", "Chinese"], "house rule": ["pets", "parties", "smoking", "visitors", "children under 10"], "room type": ["private room", "entire room"], "transportation": ["no flight", "no self-driving"]}
