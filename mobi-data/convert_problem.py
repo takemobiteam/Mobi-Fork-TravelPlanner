@@ -1,6 +1,7 @@
 import json
 from definitions import *
 from serializer import CustomEncoder
+from datetime import datetime, timedelta
 
 ACTIVITY_DURATION = 60 * 60 # 1 hour
 ACTIVITY_UTILITY = 50 # Base utility
@@ -13,8 +14,15 @@ def load_jsonl(file_path):
     return all_data
 
 def convert_problem(data):
+    # Dates of the problem
+    days = data['days']
+    dates = list(map(get_datetime_from_string, data['date']))
+    end_datetime = dates[0] + timedelta(days=days)
+
+    # Create problem with start and end events
     start_event = Event()
     end_event = Event()
+    start_event.scheduled_time = dates[0]
     problem = Problem(start_event, end_event)
 
     # Add user_start and end events
@@ -22,11 +30,28 @@ def convert_problem(data):
     user_end = Event()
     problem.add_episode(start_event, user_start, 0, None)
     problem.add_episode(user_end, end_event, 0, None)
+    # TODO: a different user_start lb??
+    user_start.earliest_time = dates[0]
+    problem.add_episode(start_event, user_start, 0, None)
+    user_end.latest_time = end_datetime
+    problem.add_episode(start_event, user_end, 0, 24 * 60 * 60 * days)
+
+    # Obtain origin
+    origin = data['org']
+    destination = data['dest']
+    # TODO: add origin location
+    origin_loc = problem.add_location(origin, None, None)
+
+    # Create user agent with round trip
+    agent = Agent(user_start, user_end, origin_loc, origin_loc)
+    problem.add_agent(agent)
 
     # Go through each activity in the problem and construct goal groups
     for info in data['structured_ref_info']:
         if info['Info Type'] == 'Attractions':
-            add_activities(info, problem, user_start, user_end)
+            goal_groups = add_activities(info, problem, user_start, user_end)
+            for goal_group in goal_groups:
+                agent.add_goal_group(goal_group)
 
     return problem
 
@@ -40,6 +65,8 @@ def add_activities(info, problem, user_start, user_end):
     phones = info_data['Phone']
     websites = info_data['Website']
     cities = info_data['City']
+
+    goal_groups = []
 
     for idx in range(num_activities):
         i = str(idx)
@@ -86,6 +113,16 @@ def add_activities(info, problem, user_start, user_end):
         goal_group.add_goal_episode(activity)
         goal_group.selection_variable = choice_var
         goal_group.add_guard(visit)
+
+        goal_groups.append(goal_group)
+
+    return goal_groups
+
+
+def get_datetime_from_string(date_string):
+    # "2022-03-16"
+    date_format = "%Y-%m-%d"
+    return datetime.strptime(date_string, date_format)
 
 
 if __name__ == '__main__':

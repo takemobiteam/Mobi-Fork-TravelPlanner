@@ -63,18 +63,23 @@ class Problem(Serializable):
         self.goal_groups.append(goal_group)
         return goal_group
 
+    def add_agent(self, agent):
+        self.agents.append(agent)
+        return agent
+
     def to_json(self):
         return {
             "@type": "Problem",
             "id": self.id,
             "startEvent": self.start_event,
             "endEvent": self.end_event,
+            "all_decision_variables": self.decision_variables,
+            "all_global_constraints": self.global_constraints,
+            "all_agents": self.agents,
             "all_events": [event for event in self.id2event.values()],
             "all_episodes": self.episodes,
             "all_locations": self.locations,
-            "all_agents": self.agents,
-            "all_decision_variables": self.decision_variables,
-            "all_global_constraints": self.global_constraints
+            "all_goal_groups": self.goal_groups
         }
 
 
@@ -94,9 +99,9 @@ class Event(Serializable):
             "id": self.id,
             "outgoingEpisodes": self.outgoing_episodes,
             "incomingEpisodes": self.incoming_episodes,
-            "earliestTime": self.earliest_time,
-            "latestTime": self.latest_time,
-            "scheduledTime": self.scheduled_time,
+            "earliestTime": datetime_to_unix(self.earliest_time),
+            "latestTime": datetime_to_unix(self.latest_time),
+            "scheduledTime": datetime_to_unix(self.scheduled_time),
             "name": self.name
         }
 
@@ -248,3 +253,66 @@ class Location(Serializable):
         }
 
 
+class Agent(Serializable):
+    def __init__(self, start_event, end_event, start_location, end_location):
+        self.id = str(uuid.uuid4())
+        self.name = "USER"
+        self.min_velocity = 8.0
+        self.max_velocity = 11.0
+        self.price_tolerance = 4.0
+        self.time_sensitivity = 1.0
+        self.start_location = start_location
+        self.end_location = end_location
+        self.start_event = start_event
+        self.end_event = end_event
+        self.goal_groups = []
+        self.agent_activities = []
+        self.available_modes = ["WALK", "TAXI"]
+        self.mode_preferences = {"WALK": 5.0, "TAXI": 0.1}
+        self.vehicle = None
+        self.goal_mode_transition_table = []
+        self.add_mode_for_goal(None)
+
+    def add_goal_group(self, goal_group):
+        self.goal_groups.append(goal_group)
+        for ep in goal_group.goal_episodes:
+            self.agent_activities.append(ep)
+        self.add_mode_for_goal(goal_group)
+
+    def add_mode_for_goal(self, goal):
+        for mode1 in ['TAXI', 'WALK']:
+            for mode2 in ['TAXI', 'WALK']:
+                self.goal_mode_transition_table.append({
+                    'left': goal,
+                    'middle': mode1,
+                    'right': mode2,
+                    'value': True
+                    })
+
+    def to_json(self):
+        return {
+            "@type": "Agent",
+            "id": self.id,
+            "name": self.name,
+            "minVelocity": self.min_velocity,
+            "maxVelocity": self.max_velocity,
+            "priceTolerance": self.price_tolerance,
+            "timeSensitivity": self.time_sensitivity,
+            "startLocation": self.start_location,
+            "endLocation": self.end_location,
+            "startEvent": self.start_event,
+            "endEvent": self.end_event,
+            "goalGroups": self.goal_groups,
+            "agentActivities": self.agent_activities,
+            "availableModes": self.available_modes,
+            "modePreferences": self.mode_preferences,
+            "vehicle": self.vehicle,
+            "goalModeTransitionTable": self.goal_mode_transition_table
+        }
+
+
+
+def datetime_to_unix(date_object):
+    if date_object is None:
+        return None
+    return int(date_object.timestamp())
