@@ -5,6 +5,14 @@ from datetime import datetime, timedelta
 
 ACTIVITY_DURATION = 60 * 60 # 1 hour
 ACTIVITY_UTILITY = 50 # Base utility
+ACTIVITY_START_TIME = 9 * 60 * 60 # 9:00 AM
+ACTIVITY_END_TIME = 18 * 60 * 60 # 6:00 PM
+
+USE_REAL_LAT_LON = True
+FAKE_LAT = 0.0
+FAKE_LON = 0.0
+DEFAULT_LAT = 42.2773242
+DEFAULT_LON = -89.08814249
 
 def load_jsonl(file_path):
     all_data = []
@@ -40,7 +48,12 @@ def convert_problem(data):
     origin = data['org']
     destination = data['dest']
     # TODO: add origin location
-    origin_loc = problem.add_location(origin, None, None)
+    #  origin_loc = problem.add_location(origin, None, None)
+    # TODO: Hack for now
+    if USE_REAL_LAT_LON:
+        origin_loc = problem.add_location(origin, DEFAULT_LAT, DEFAULT_LON)
+    else:
+        origin_loc = problem.add_location(destination, FAKE_LAT, FAKE_LON)
 
     # Create user agent with round trip
     agent = Agent(user_start, user_end, origin_loc, origin_loc)
@@ -49,13 +62,13 @@ def convert_problem(data):
     # Go through each activity in the problem and construct goal groups
     for info in data['structured_ref_info']:
         if info['Info Type'] == 'Attractions':
-            goal_groups = add_activities(info, problem, user_start, user_end)
+            goal_groups = add_activities(info, problem, user_start, user_end, dates)
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
 
     return problem
 
-def add_activities(info, problem, user_start, user_end):
+def add_activities(info, problem, user_start, user_end, dates):
     num_activities = info['Number']
     info_data = info['Structured Content']
     names = info_data['Name']
@@ -87,10 +100,13 @@ def add_activities(info, problem, user_start, user_end):
         activity = problem.add_episode(start_event, end_event,
                                        ACTIVITY_DURATION, ACTIVITY_DURATION, True)
         activity.name = names[i]
-        location = problem.add_location(names[i], lats[i], lons[i])
+        if USE_REAL_LAT_LON:
+            location = problem.add_location(names[i], lats[i], lons[i])
+        else:
+            location = problem.add_location(names[i], FAKE_LAT, FAKE_LON)
         activity.start_location = location
         activity.end_location = location
-        # TODO: fabricate time windows
+        activity.time_windows = get_activity_time_windows(dates)
 
         # Add decision variable for choice of activity
         # Guards 1 activity episode
@@ -123,6 +139,15 @@ def get_datetime_from_string(date_string):
     # "2022-03-16"
     date_format = "%Y-%m-%d"
     return datetime.strptime(date_string, date_format)
+
+def get_activity_time_windows(dates):
+    time_windows = []
+    for date in dates:
+        start_time = date + timedelta(seconds=ACTIVITY_START_TIME)
+        end_time = date + timedelta(seconds=ACTIVITY_END_TIME)
+        time_windows.append([start_time, end_time])
+    return time_windows
+
 
 
 if __name__ == '__main__':

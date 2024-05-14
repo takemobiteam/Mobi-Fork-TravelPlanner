@@ -136,15 +136,16 @@ class Episode(Serializable):
             "fromEvent": self.from_event,
             "toEvent": self.to_event,
             "type": self.type,
-            "lb": self.lb,
-            "ub": self.ub,
+            "lb": self.lb if self.lb is not None else 0.0,
+            "ub": self.ub if self.ub is not None else "Infinity",
             "lbRelaxable": self.lb_relaxable,
             "ubRelaxable": self.ub_relaxable,
             "guards": self.guards,
             "startLocation": self.start_location,
             "endLocation": self.end_location,
             "cost": self.cost,
-            "timeWindows": self.time_windows,
+            "timeWindows": [list(map(datetime_to_unix, pair))
+                            for pair in self.time_windows],
             "description": self.description
         }
 
@@ -183,8 +184,8 @@ class Assignment(Serializable):
         self.activating_episodes = []
         self.activating_variables = []
         self.activating_goalgroups = []
-        self.g = None
-        self.h = None
+        self.g = 0.0
+        self.h = 0.0
 
     def to_json(self):
         return {
