@@ -14,7 +14,7 @@ class Problem(Serializable):
         self.id2event = {}
         self.episodes = []
         self.goal_groups = []
-        self.locations = []
+        self.name2location = {}
         self.agents = []
         self.decision_variables = []
         self.global_constraints = []
@@ -36,8 +36,10 @@ class Problem(Serializable):
         return episode
 
     def add_location(self, name, lat, lon):
+        if name in self.name2location:
+            return self.name2location[name]
         location = Location(name, lat, lon)
-        self.locations.append(location)
+        self.name2location[name] = location
         return location
 
     def add_decision_variable(self, name, domain2value):
@@ -78,7 +80,7 @@ class Problem(Serializable):
             "all_agents": self.agents,
             "all_events": [event for event in self.id2event.values()],
             "all_episodes": self.episodes,
-            "all_locations": self.locations,
+            "all_locations": [location for location in self.name2location.values()],
             "all_goal_groups": self.goal_groups
         }
 
@@ -157,6 +159,14 @@ class DecisionVariable(Serializable):
         self.guards = []
         self.domain_assignment_map = {}
         self.f = 0.0
+
+    def add_assignment(self, domain, value):
+        assignment = Assignment()
+        assignment.decision_variable = self
+        assignment.decision_value = domain
+        assignment.g = value
+        self.domain_assignment_map[domain] = assignment
+        return assignment
 
     def get_assignment(self, domain):
         return self.domain_assignment_map[domain]
