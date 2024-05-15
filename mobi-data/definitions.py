@@ -69,6 +69,10 @@ class Problem(Serializable):
         self.agents.append(agent)
         return agent
 
+    def add_global_constraint(self, constraint):
+        self.global_constraints.append(constraint)
+        return constraint
+
     def to_json(self):
         return {
             "@type": "Problem",
@@ -319,6 +323,30 @@ class Agent(Serializable):
             "modePreferences": self.mode_preferences,
             "vehicle": self.vehicle,
             "goalModeTransitionTable": self.goal_mode_transition_table
+        }
+
+class AllDiff(Serializable):
+    def __init__(self):
+        self.id = str(uuid.uuid4())
+        self.guards = []
+        self.variables = []
+        self.domain_values = []
+
+    def add_variable(self, variable):
+        self.variables.append(variable)
+        return variable
+
+    def add_domain_value(self, value):
+        self.domain_values.append(value)
+        return value
+
+    def to_json(self):
+        return {
+            "@type": "AllDiffConstraint",
+            "id": self.id,
+            "guards": self.guards,
+            "variables": self.variables,
+            "domainValues": self.domain_values
         }
 
 

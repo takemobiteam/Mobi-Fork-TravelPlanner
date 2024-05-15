@@ -168,6 +168,15 @@ def add_restaurants(info, problem, user_start, user_end, dates):
                                              ratings, cities)
             goal_groups.append(goal)
 
+
+    # Add all diff constraint so that no restaurant is repeated
+    all_diff = AllDiff()
+    for goal_group in goal_groups:
+        all_diff.add_variable(goal_group.selection_variable)
+    for name in names:
+        all_diff.add_domain_value(name)
+    problem.add_global_constraint(all_diff)
+
     return goal_groups
 
 
