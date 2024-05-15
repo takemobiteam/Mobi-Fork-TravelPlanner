@@ -1,5 +1,6 @@
 import json
 from definitions import Serializable
+from datetime import datetime
 
 class CustomEncoder(json.JSONEncoder):
     def __init__(self, *args, **kwargs):
@@ -8,6 +9,8 @@ class CustomEncoder(json.JSONEncoder):
         self.counter = 1
 
     def default(self, obj):
+        if isinstance(obj, datetime):
+            return datetime_to_unix(obj)
         if isinstance(obj, Serializable):
             if id(obj) in self.seen:
                 # If already serialized, return a reference ID
@@ -27,3 +30,8 @@ class CustomEncoder(json.JSONEncoder):
             return serialized_obj
         return super(CustomEncoder, self).default(obj)
 
+
+def datetime_to_unix(date_object):
+    if date_object is None:
+        return None
+    return int(date_object.timestamp())

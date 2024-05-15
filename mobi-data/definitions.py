@@ -1,6 +1,5 @@
 import uuid
 
-
 class Serializable:
     def to_json(self):
         raise NotImplementedError
@@ -105,9 +104,9 @@ class Event(Serializable):
             "id": self.id,
             "outgoingEpisodes": self.outgoing_episodes,
             "incomingEpisodes": self.incoming_episodes,
-            "earliestTime": datetime_to_unix(self.earliest_time),
-            "latestTime": datetime_to_unix(self.latest_time),
-            "scheduledTime": datetime_to_unix(self.scheduled_time),
+            "earliestTime": self.earliest_time,
+            "latestTime": self.latest_time,
+            "scheduledTime": self.scheduled_time,
             "name": self.name
         }
 
@@ -123,6 +122,8 @@ class Episode(Serializable):
         self.ub = None
         self.lb_relaxable = False
         self.ub_relaxable = False
+        self.lb_relax_cost = []
+        self.ub_relax_cost = []
         self.guards = []
         self.start_location = None
         self.end_location = None
@@ -146,12 +147,13 @@ class Episode(Serializable):
             "ub": self.ub if self.ub is not None else "Infinity",
             "lbRelaxable": self.lb_relaxable,
             "ubRelaxable": self.ub_relaxable,
+            "lbRelaxCost": self.lb_relax_cost,
+            "ubRelaxCost": self.ub_relax_cost,
             "guards": self.guards,
             "startLocation": self.start_location,
             "endLocation": self.end_location,
             "cost": self.cost,
-            "timeWindows": [list(map(datetime_to_unix, pair))
-                            for pair in self.time_windows],
+            "timeWindows": self.time_windows,
             "description": self.description
         }
 
@@ -349,9 +351,3 @@ class AllDiff(Serializable):
             "domainValues": self.domain_values
         }
 
-
-
-def datetime_to_unix(date_object):
-    if date_object is None:
-        return None
-    return int(date_object.timestamp())
