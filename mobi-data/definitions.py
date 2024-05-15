@@ -351,3 +351,27 @@ class AllDiff(Serializable):
             "domainValues": self.domain_values
         }
 
+class SumConstraint(Serializable):
+    def __init__(self):
+        self.id = str(uuid.uuid4())
+        self.name = None
+        self.episode_value_map = {}
+        self.upperbound = None
+        self.lowerbound = None
+        self.lb_relaxation_cost = []
+        self.ub_relaxation_cost = []
+
+    def set_episode_value(self, episode, value):
+        self.episode_value_map[episode.id] = value
+
+    def to_json(self):
+        return {
+            "@type": "SumConstraint",
+            "id": self.id,
+            "name": self.name,
+            "episodeValues": self.episode_value_map,
+            "upperbound": self.upperbound if self.upperbound is not None else "Infinity",
+            "lowerbound": self.lowerbound if self.lowerbound is not None else "-Infinity",
+            "lbRelaxationCost": self.lb_relaxation_cost,
+            "ubRelaxationCost": self.ub_relaxation_cost
+        }

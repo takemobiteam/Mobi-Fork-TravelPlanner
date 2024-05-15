@@ -75,6 +75,16 @@ def convert_problem(data):
     agent = Agent(user_start, user_end, origin_loc, origin_loc)
     problem.add_agent(agent)
 
+    # Create budget constraint if exists
+    if 'budget' in data:
+        budget = SumConstraint()
+        budget.name = 'Budget'
+        budget.upperbound = data['budget']
+        budget.ub_relaxation_cost = [0.0, 1.0e20]
+        problem.add_global_constraint(budget)
+    else:
+        budget = None
+
     # Go through each activity in the problem and construct goal groups
     for info in data['structured_ref_info']:
         if info['Info Type'] == 'Attractions':
@@ -82,11 +92,11 @@ def convert_problem(data):
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
         elif info['Info Type'] == 'Restaurants':
-            goal_groups = add_restaurants(info, problem, user_start, user_end, dates)
+            goal_groups = add_restaurants(info, problem, user_start, user_end, dates, budget)
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
         elif info['Info Type'] == 'Accommodations':
-            goal_groups = add_hotels(info, problem, start_event, user_start, user_end, dates)
+            goal_groups = add_hotels(info, problem, start_event, user_start, user_end, dates, budget)
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
 
@@ -158,7 +168,7 @@ def add_activities(info, problem, user_start, user_end, dates):
     return goal_groups
 
 
-def add_restaurants(info, problem, user_start, user_end, dates):
+def add_restaurants(info, problem, user_start, user_end, dates, budget):
     num_restaurants = info['Number']
     info_data = info['Structured Content']
     names = info_data['Name']
@@ -175,7 +185,7 @@ def add_restaurants(info, problem, user_start, user_end, dates):
         for date in dates:
             goal = add_restaurant_goal_group(problem, user_start, user_end, meal, date,
                                              num_restaurants, names, costs, cuisines,
-                                             ratings, cities)
+                                             ratings, cities, budget)
             goal_groups.append(goal)
 
 
@@ -192,7 +202,7 @@ def add_restaurants(info, problem, user_start, user_end, dates):
 
 def add_restaurant_goal_group(problem, user_start, user_end, meal, date,
                               num_restaurants, names, costs, cuisines,
-                              ratings, cities):
+                              ratings, cities, budget):
     # TODO: add costs, filter cuisine
     arrival_event = Event()
     start_event = Event()
@@ -238,10 +248,12 @@ def add_restaurant_goal_group(problem, user_start, user_end, meal, date,
         goal_group.add_goal_episode(restaurant)
         assignment = choice_var.add_assignment(names[i], RESTAURANT_UTILITY_SCALING * ratings[i])
         restaurant.add_guard(assignment)
+        if budget:
+            budget.set_episode_value(restaurant, costs[i])
 
     return goal_group
 
-def add_hotels(info, problem, start, user_start, user_end, dates):
+def add_hotels(info, problem, start, user_start, user_end, dates, budget):
     num_hotels = info['Number']
     info_data = info['Structured Content']
     names = info_data['NAME']
@@ -260,7 +272,7 @@ def add_hotels(info, problem, start, user_start, user_end, dates):
         goal = add_hotel_goal_group(problem, start, user_start, user_end, date, day,
                                     num_hotels, names, prices, room_types,
                                     hours_rules, minimum_nights, maximum_occupancy,
-                                    review_rate_number, cities)
+                                    review_rate_number, cities, budget)
         goal_groups.append(goal)
 
     return goal_groups
@@ -268,7 +280,7 @@ def add_hotels(info, problem, start, user_start, user_end, dates):
 def add_hotel_goal_group(problem, start, user_start, user_end, date, day,
                          num_hotels, names, prices, room_types,
                          house_rules, minimum_nights, maximum_occupancy,
-                         review_rate_number, cities):
+                         review_rate_number, cities, budget):
 
     # TODO: unclear what is the arrival earliest time and departure latest time
     arrival_event = Event()
@@ -335,6 +347,8 @@ def add_hotel_goal_group(problem, start, user_start, user_end, date, day,
         hotel.add_guard(assignment)
         # TODO: This is also for hotel only in ABP encoding
         hotel.add_guard(visit)
+        if budget:
+            budget.set_episode_value(hotel, prices[i])
 
     return goal_group
 
