@@ -19,12 +19,16 @@ LUNCH_END_TIME = 14 * 60 * 60 # 2:00 PM
 DINNER_START_TIME = 18 * 60 * 60 # 6:00 PM
 DINNER_END_TIME = 20 * 60 * 60 # 8:00 PM
 
-HOTEL_BASE_DURATION = 60 * 60 # 1 hour
+HOTEL_BASE_DURATION = 8 * 60 * 60 # 8 hour
 HOTEL_UTILITY_SCALING = 20 # Scaled by ratings
 HOTEL_VISIT_UTILITY = 100
 HOTEL_CHECKIN_TIME = 15 * 60 * 60 # 3:00 PM
 HOTEL_CHECKOUT_TIME = 12 * 60 * 60 # 12:00 PM
 HOTEL_PREFERRED_START_TIME = 21 * 60 * 60 # 9:00 PM
+
+FLIGHT_STANDARD_DURATION = 60 * 60 # 1 hour
+FLIGHT_UTILITY_SCALING = 30 # Scaled by STANDARD_DURATION/duration
+FLIGHT_BUFFER_TIME = 3 * 60 * 60 # 3 hours
 
 USE_REAL_LAT_LON = False
 FAKE_LAT = 0.0
@@ -99,6 +103,11 @@ def convert_problem(data):
             goal_groups = add_hotels(info, problem, start_event, user_start, user_end, dates, budget)
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
+
+    # Add transportation
+    goal_groups = add_transportation(data, problem, user_start, user_end, dates)
+    for goal_group in goal_groups:
+        agent.add_goal_group(goal_group)
 
 
     return problem
@@ -352,10 +361,172 @@ def add_hotel_goal_group(problem, start, user_start, user_end, date, day,
 
     return goal_group
 
+def add_transportation(data, problem, user_start, user_end, dates, budget=None):
+    date2info = {}
+    # TODO: Hack to get the date for driving options
+    i_driving = 0
+    i_taxi = 0
+    for info in data['structured_ref_info']:
+        if info['Info Type'] == 'Flight':
+            populate_flight_info(info, date2info)
+        elif info['Info Type'] == 'Self-driving':
+            i_driving = populate_driving_info(info, date2info, dates, i_driving, 'self-driving')
+        elif info['Info Type'] == 'Taxi':
+            i_taxi = populate_driving_info(info, date2info, dates, i_taxi, 'taxi')
+
+    goal_groups = []
+    i = 0
+    while i < len(dates):
+        date = dates[i].strftime('%Y-%m-%d')
+        # TODO: hardcoded for travel planning problem
+        i += 2
+        info = date2info[date] if date in date2info else []
+        date = get_datetime_from_string(date)
+
+        # Create a goal group for the different flight
+        arrival_event = Event()
+        start_event = Event()
+        end_event = Event()
+        departure_event = Event()
+
+        # Add constraint episodes
+        ep1 = problem.add_episode(user_start, arrival_event, 0, None)
+        ep2 = problem.add_episode(arrival_event, start_event, 0, None)
+        ep3 = problem.add_episode(start_event, end_event, 1, None)
+        ep4 = problem.add_episode(end_event, departure_event, 0, None)
+        ep5 = problem.add_episode(departure_event, user_end, 0, None)
+        ep6 = problem.add_episode(arrival_event, departure_event, 0, None)
+
+        # Flight is a must visit, create a choice var
+        choice_var = problem.add_decision_variable('Choice_Flight-'+date.strftime('%m/%d'), {})
+
+        # Add goal group
+        goal_group = problem.add_goal_group("Flight-"+date.strftime('%m/%d'),
+                                            start_event, end_event,
+                                            arrival_event, departure_event, 300)
+        goal_group.selection_variable = choice_var
+
+        # Create a dummy flight that is infeasible -- fail when no flight options
+        # Such a flight has no time window or arrival/departure time, hence no availablity
+        dummy_flight = problem.add_episode(start_event, end_event,
+                                           0, None, True)
+        dummy_flight.name = 'No Flight'
+        dummy_flight.start_location = problem.add_location("DUMMY",
+                                                           FAKE_LAT, FAKE_LON)
+        dummy_flight.end_location = problem.add_location("DUMMY",
+                                                         FAKE_LAT, FAKE_LON)
+        goal_group.add_goal_episode(dummy_flight)
+        assignment = choice_var.add_assignment('No Flight', 0.0)
+        dummy_flight.add_guard(assignment)
+
+        for flight_info in info:
+            # Add flight episode
+            flight = problem.add_episode(start_event, end_event,
+                                         flight_info['duration'],
+                                         flight_info['duration'], True)
+            flight.name = flight_info['type'] + flight_info['name']
+            flight.start_location = problem.add_location(flight_info['origin_city'],
+                                                         FAKE_LAT, FAKE_LON)
+            flight.end_location = problem.add_location(flight_info['dest_city'],
+                                                       FAKE_LAT, FAKE_LON)
+            # TODO: flight time should be improved, try scheduled time?
+            # Right now, this is proving a buffer so that its availability is non-zero
+            flight.time_windows = [[flight_info['start_time'] - timedelta(seconds=FLIGHT_BUFFER_TIME),
+                                    flight_info['end_time'] + timedelta(seconds=FLIGHT_BUFFER_TIME)]]
+
+            goal_group.add_goal_episode(flight)
+            assignment = choice_var.add_assignment(flight.name,
+                                                   FLIGHT_UTILITY_SCALING * FLIGHT_STANDARD_DURATION/flight_info['duration'])
+            flight.add_guard(assignment)
+            if budget:
+                budget.set_episode_value(flight, flight_info['price'])
+
+        goal_groups.append(goal_group)
+
+    return goal_groups
+
+
+def populate_flight_info(info, date2info):
+    num_flights = info['Number']
+    if num_flights < 1:
+        return
+    info_data = info['Structured Content']
+    flight_numbers = info_data['Flight Number']
+    origin_cities = info_data['OriginCityName']
+    dest_cities = info_data['DestCityName']
+    # Time in the form of "hh:mm"
+    departure_times = info_data['DepTime']
+    arrival_times = info_data['ArrTime']
+    durations = info_data['ActualElapsedTime']
+    flight_dates = info_data['FlightDate']
+    prices = info_data['Price']
+    distances = info_data['Distance']
+
+    for idx in range(num_flights):
+        i = str(idx)
+        flight_date = get_datetime_from_string(flight_dates[i])
+        start_time = get_time_from_string(departure_times[i])
+        end_time = get_time_from_string(arrival_times[i])
+        start_datetime = flight_date.replace(hour=start_time.hour,
+                                             minute=start_time.minute)
+        end_datetime = flight_date.replace(hour=end_time.hour,
+                                           minute=end_time.minute)
+        # Check if end_time is before start_time and adjust abs_end_time if necessary
+        if end_time < start_time:
+            end_datetime += timedelta(days=1)
+        if flight_date not in date2info:
+            date2info[flight_dates[i]] = []
+        date2info[flight_dates[i]].append({
+            'type': 'flight',
+            'name': '-' + flight_numbers[i],
+            'origin_city': origin_cities[i],
+            'dest_city': dest_cities[i],
+            'start_time': start_datetime,
+            'end_time': end_datetime,
+            'duration': get_duration_from_string(durations[i]),
+            'price': prices[i],
+            'distance': distances[i]
+            })
+
+def populate_driving_info(info, date2info, dates, i, type_name):
+    if info['Number'] == 1:
+        origin = info['Structured Content']['origin']
+        dest = info['Structured Content']['destination']
+        duration = info['Structured Content']['duration']
+        cost = info['Structured Content']['cost']
+        distance = info['Structured Content']['distance']
+        date = dates[i].strftime('%Y-%m-%d')
+
+    date2info[date] = [{
+        'type': type_name,
+        'name': '',
+        'origin_city': origin,
+        'dest_city': dest,
+        'duration': get_duration_from_string(duration),
+        'price': cost,
+        'distance': distance,
+        'start_time': get_datetime_from_string(date),
+        'end_time': get_datetime_from_string(date) + timedelta(days=1)
+    }]
+
+    return i + 2
+
+
+def get_duration_from_string(duration_string):
+    # "x hours x minutes"
+    duration = duration_string.split()
+    hours = int(duration[0])
+    minutes = int(duration[2])
+    return hours * 60 * 60 + minutes * 60
+
 def get_datetime_from_string(date_string):
     # "2022-03-16"
     date_format = "%Y-%m-%d"
     return datetime.strptime(date_string, date_format)
+
+def get_time_from_string(time_string):
+    time_format = "%H:%M"
+    return datetime.strptime(time_string, time_format).time()
 
 def get_activity_time_windows(dates):
     time_windows = []
@@ -382,7 +553,9 @@ def get_restaurant_time_windows(meal, date):
 
 if __name__ == '__main__':
     data = load_jsonl('converted_data/train_data_list.jsonl')
-    for problem_data in data[:1]:
+    #  for problem_data in data[:1]:
+    for problem_data in data[1:2]:
+    #  for problem_data in data[18:19]:
         converted_problem = convert_problem(problem_data)
         # Do something with the converted problem
         encoded_problem = json.dumps(converted_problem, cls=CustomEncoder, indent=2)
