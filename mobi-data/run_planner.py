@@ -26,11 +26,7 @@ def load_jsonl(file_path):
 
 if __name__ == "__main__":
     data = load_jsonl('converted_data/train_data_list.jsonl')
-    #  for problem_data in data[:1]:
-    #  for problem_data in data[6:7]:
-    #  for problem_data in data[1:2]:
-    #  for problem_data in data[18:19]:
-    for problem_data in data[9:10]:
+    for problem_data in data:
         print("# Problem %d" % problem_data['original_data_index'])
 
         problem = encode_problem(problem_data)

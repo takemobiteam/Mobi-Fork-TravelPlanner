@@ -496,10 +496,14 @@ def populate_driving_info(info, date2info, dates, i, type_name):
 # Helper functions
 # #######################################
 def get_duration_from_string(duration_string):
-    # "x hours x minutes"
+    # "x hours x minutes" or "x hours x mins" or "x mins"
     duration = duration_string.split()
-    hours = int(duration[0])
-    minutes = int(duration[2])
+    if len(duration) == 2:
+        hours = 0
+        minutes = int(duration[0])
+    else:
+        hours = int(duration[0])
+        minutes = int(duration[2])
     return hours * 60 * 60 + minutes * 60
 
 def get_datetime_from_string(date_string):

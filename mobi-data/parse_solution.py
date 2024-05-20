@@ -49,7 +49,13 @@ def parse_travel_plan(input_json, problem_data):
                     if i == len(route) - 1:
                         day_plan["accommodation"] = name
                 elif poi_type_map[name] == POIType.FLIGHT:
-                    day_plan["transportation"] = name
+                    day_plan["transportation"] = "Flight Number: " + name.replace("flight-", "")
+                    start_loc = get_location(segment['startLocation'], id2location)
+                    end_loc = get_location(segment['endLocation'], id2location)
+                    start_city = start_loc['name']
+                    end_city = end_loc['name']
+                    prev_city = end_city
+                    day_plan["current_city"] = "from " + start_city + " to " + end_city
                 elif poi_type_map[name] == POIType.SELF_DRIVING:
                     day_plan["transportation"] = "Self-driving"
                     start_loc = get_location(segment['startLocation'], id2location)
@@ -104,7 +110,7 @@ def get_poi_type(data):
         elif info[i]['Info Type'] == 'Flight':
             if info[i]['Number'] > 0:
                 for name in info[i]['Structured Content']['Flight Number'].values():
-                    poi_type_map[name] = POIType.FLIGHT
+                    poi_type_map["flight-"+name] = POIType.FLIGHT
     poi_type_map['self-driving'] = POIType.SELF_DRIVING
     poi_type_map['taxi'] = POIType.TAXI
     return poi_type_map
