@@ -49,6 +49,7 @@ def encode_problem(data):
         budget = None
 
     # Go through each activity in the problem and construct goal groups
+    idx_hotel = 0
     for info in data['structured_ref_info']:
         if info['Info Type'] == 'Attractions':
             goal_groups = add_activities(info, problem, user_start, user_end, dates)
@@ -59,9 +60,10 @@ def encode_problem(data):
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
         elif info['Info Type'] == 'Accommodations':
-            goal_groups = add_hotels(info, problem, start_event, user_start, user_end, dates, budget)
+            goal_groups = add_hotels(info, problem, start_event, user_start, user_end, dates, budget, idx_hotel)
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
+            idx_hotel += 2
 
     # Add transportation
     goal_groups = add_transportation(data, problem, user_start, user_end, dates)
@@ -235,7 +237,7 @@ def add_restaurant_goal_group(problem, user_start, user_end, meal, date,
 # #######################################
 # Function to add hotels to problem
 # #######################################
-def add_hotels(info, problem, start, user_start, user_end, dates, budget):
+def add_hotels(info, problem, start, user_start, user_end, dates, budget, idx_hotel):
     num_hotels = info['Number']
     if num_hotels < 1:
         return []
@@ -251,7 +253,8 @@ def add_hotels(info, problem, start, user_start, user_end, dates, budget):
 
     # Create a goal group for each night, consisting of all choice of hotels
     goal_groups = []
-    for day in range(len(dates)-1):
+    #  for day in range(len(dates)-1):
+    for day in [idx_hotel, idx_hotel+1]:
         date = dates[day]
         goal = add_hotel_goal_group(problem, start, user_start, user_end, date, day,
                                     num_hotels, names, prices, room_types,
