@@ -1,0 +1,52 @@
+{
+    "../database/accommodations/clean_accommodations_2022.csv": {
+        "id": "file-7ZdgNA4HvwtCWwg16AAPUmEp",
+        "bytes": 520458,
+        "created_at": 1716216711,
+        "filename": "clean_accommodations_2022.csv",
+        "object": "file",
+        "purpose": "assistants",
+        "status": "processed",
+        "status_details": null
+    },
+    "../database/attractions/attractions.csv": {
+        "id": "file-siMa0C67mQM4qUn9AkBFjKKy",
+        "bytes": 817982,
+        "created_at": 1716216712,
+        "filename": "attractions.csv",
+        "object": "file",
+        "purpose": "assistants",
+        "status": "processed",
+        "status_details": null
+    },
+    "../database/flights/clean_Flights_2022.csv": {
+        "id": "file-z3S4sL0zvULQKGECUPKaPvu5",
+        "bytes": 304807007,
+        "created_at": 1716216802,
+        "filename": "clean_Flights_2022.csv",
+        "object": "file",
+        "purpose": "assistants",
+        "status": "processed",
+        "status_details": null
+    },
+    "../database/googleDistanceMatrix/distance.csv": {
+        "id": "file-GdM62ZJ8sVOOSXQznpkOjC2K",
+        "bytes": 795427,
+        "created_at": 1716216810,
+        "filename": "distance.csv",
+        "object": "file",
+        "purpose": "assistants",
+        "status": "processed",
+        "status_details": null
+    },
+    "../database/restaurants/clean_restaurant_2022.csv": {
+        "id": "file-4BBloZC5bfAiBvaWY4DQdMVu",
+        "bytes": 683023,
+        "created_at": 1716216811,
+        "filename": "clean_restaurant_2022.csv",
+        "object": "file",
+        "purpose": "assistants",
+        "status": "processed",
+        "status_details": null
+    }
+}

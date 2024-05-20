@@ -21,3 +21,9 @@ class Cities:
             return ValueError("Invalid State")
         else:
             return self.data[state]
+    
+    def run_for_mobi(self, state) -> DataFrame:
+        if state not in self.data:
+            return None
+        else:
+            return DataFrame.from_dict(self.data[state])
