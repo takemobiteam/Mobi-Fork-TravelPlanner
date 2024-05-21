@@ -516,6 +516,9 @@ def get_datetime_from_string(date_string):
     return datetime.strptime(date_string, date_format)
 
 def get_time_from_string(time_string):
+    # TODO: hack for special case: 24:00
+    if time_string == '24:00':
+        time_string = '23:59'
     time_format = "%H:%M"
     return datetime.strptime(time_string, time_format).time()
 

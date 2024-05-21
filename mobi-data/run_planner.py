@@ -26,8 +26,16 @@ def load_jsonl(file_path):
             all_data.append(json.loads(line))
     return all_data
 
-if __name__ == "__main__":
-    data = load_jsonl('converted_data/train_data_list.jsonl')
+def run_tests(validation=False, solution_filepath=None):
+    if validation:
+        data = load_jsonl('converted_data/val_data_list.jsonl')
+    else:
+        data = load_jsonl('converted_data/train_data_list.jsonl')
+
+    if solution_filepath is not None:
+        if os.path.exists(solution_filepath):
+            os.remove(solution_filepath)
+
     for problem_data in data:
         print("# Problem %d" % problem_data['original_data_index'])
 
@@ -49,9 +57,23 @@ if __name__ == "__main__":
             subprocess.run(["java", "-jar", EXECUTABLE, input_filepath, output_filepath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         if os.path.exists(output_filepath):
-            print(parse_travel_plan(output_filepath, problem_data))
+            plan = parse_travel_plan(output_filepath, problem_data)
+            print(plan)
         else:
+            plan = None
             print("No solution found")
+        res = {
+                "idx": problem_data['original_data_index'],
+                "query": problem_data['query'],
+                "plan": plan
+                }
+        if solution_filepath is not None:
+            with open(solution_filepath, 'a') as f:
+                f.write(json.dumps(res) + '\n')
 
         print("====================================================")
 
+
+if __name__ == "__main__":
+    run_tests(validation=False, solution_filepath='train_solution.jsonl')
+    #  run_tests(validation=True, solution_filepath='val_solution.jsonl')
