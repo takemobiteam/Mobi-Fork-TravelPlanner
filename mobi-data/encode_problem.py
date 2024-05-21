@@ -7,6 +7,7 @@ def encode_problem(data):
     days = data['days']
     dates = list(map(get_datetime_from_string, data['date']))
     end_datetime = dates[0] + timedelta(days=days)
+    structured_data = data['structured_ref_info']
 
     # Create problem with start and end events
     start_event = Event()
@@ -27,11 +28,8 @@ def encode_problem(data):
     # Obtain origin
     origin = data['org']
     destination = data['dest']
-    # TODO: add origin location
-    if USE_REAL_LAT_LON:
-        origin_loc = problem.add_location(origin, DEFAULT_LAT, DEFAULT_LON)
-    else:
-        origin_loc = problem.add_location(origin, FAKE_LAT, FAKE_LON)
+    lat, lon = get_city_lat_lon(origin, structured_data)
+    origin_loc = problem.add_location(origin, lat, lon)
 
     # Create user agent with round trip
     agent = Agent(user_start, user_end, origin_loc, origin_loc)
@@ -50,17 +48,21 @@ def encode_problem(data):
 
     # Go through each activity in the problem and construct goal groups
     idx_hotel = 0
+    idx_attractions = 0
+    idx_restaurants = 0
     for info in data['structured_ref_info']:
         if info['Info Type'] == 'Attractions':
-            goal_groups = add_activities(info, problem, user_start, user_end, dates)
+            goal_groups = add_activities(info, problem, user_start, user_end, dates, idx_attractions)
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
+            idx_attractions += 2
         elif info['Info Type'] == 'Restaurants':
-            goal_groups = add_restaurants(info, problem, user_start, user_end, dates, budget)
+            goal_groups = add_restaurants(info, problem, user_start, user_end, dates, budget, structured_data, idx_restaurants)
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
+            idx_restaurants += 2
         elif info['Info Type'] == 'Accommodations':
-            goal_groups = add_hotels(info, problem, start_event, user_start, user_end, dates, budget, idx_hotel)
+            goal_groups = add_hotels(info, problem, start_event, user_start, user_end, dates, budget, structured_data, idx_hotel)
             for goal_group in goal_groups:
                 agent.add_goal_group(goal_group)
             idx_hotel += 2
@@ -76,7 +78,7 @@ def encode_problem(data):
 # #######################################
 # Function to add attractions to problem
 # #######################################
-def add_activities(info, problem, user_start, user_end, dates):
+def add_activities(info, problem, user_start, user_end, dates, idx_attractions):
     num_activities = info['Number']
     if num_activities < 1:
         return []
@@ -116,7 +118,7 @@ def add_activities(info, problem, user_start, user_end, dates):
             location = problem.add_location(names[i], FAKE_LAT, FAKE_LON)
         activity.start_location = location
         activity.end_location = location
-        activity.time_windows = get_activity_time_windows(dates)
+        activity.time_windows = get_activity_time_windows(dates[idx_attractions:idx_attractions+2])
 
         # Add decision variable for choice of activity, guards 1 episode
         choice_var = problem.add_decision_variable('Choice_' + names[i],
@@ -146,7 +148,7 @@ def add_activities(info, problem, user_start, user_end, dates):
 # #######################################
 # Function to add restaurants to problem
 # #######################################
-def add_restaurants(info, problem, user_start, user_end, dates, budget):
+def add_restaurants(info, problem, user_start, user_end, dates, budget, data, idx_restaurants):
     num_restaurants = info['Number']
     if num_restaurants < 1:
         return []
@@ -162,10 +164,10 @@ def add_restaurants(info, problem, user_start, user_end, dates, budget):
     # Create breakfast, lunch and dinner goals for each day
     # where each goal group has a choice of different restaurants
     for meal in ['Breakfast', 'Lunch', 'Dinner']:
-        for date in dates:
+        for date in dates[idx_restaurants:idx_restaurants+2]:
             goal = add_restaurant_goal_group(problem, user_start, user_end, meal, date,
                                              num_restaurants, names, costs, cuisines,
-                                             ratings, cities, budget)
+                                             ratings, cities, budget, data)
             goal_groups.append(goal)
 
 
@@ -182,7 +184,7 @@ def add_restaurants(info, problem, user_start, user_end, dates, budget):
 
 def add_restaurant_goal_group(problem, user_start, user_end, meal, date,
                               num_restaurants, names, costs, cuisines,
-                              ratings, cities, budget):
+                              ratings, cities, budget, data):
     # TODO: add costs, filter cuisine
     arrival_event = Event()
     start_event = Event()
@@ -220,7 +222,8 @@ def add_restaurant_goal_group(problem, user_start, user_end, meal, date,
         restaurant = problem.add_episode(start_event, end_event,
                                          DINING_DURATION, DINING_DURATION, True)
         restaurant.name = names[i]
-        location = problem.add_location(names[i], FAKE_LAT, FAKE_LON)
+        lat, lon = get_city_lat_lon(cities[i], data)
+        location = problem.add_location(names[i], lat, lon)
         restaurant.start_location = location
         restaurant.end_location = location
         restaurant.time_windows = get_restaurant_time_windows(meal, date)
@@ -237,7 +240,7 @@ def add_restaurant_goal_group(problem, user_start, user_end, meal, date,
 # #######################################
 # Function to add hotels to problem
 # #######################################
-def add_hotels(info, problem, start, user_start, user_end, dates, budget, idx_hotel):
+def add_hotels(info, problem, start, user_start, user_end, dates, budget, data, idx_hotel):
     num_hotels = info['Number']
     if num_hotels < 1:
         return []
@@ -259,7 +262,7 @@ def add_hotels(info, problem, start, user_start, user_end, dates, budget, idx_ho
         goal = add_hotel_goal_group(problem, start, user_start, user_end, date, day,
                                     num_hotels, names, prices, room_types,
                                     hours_rules, minimum_nights, maximum_occupancy,
-                                    review_rate_number, cities, budget)
+                                    review_rate_number, cities, budget, data)
         goal_groups.append(goal)
 
     return goal_groups
@@ -267,7 +270,7 @@ def add_hotels(info, problem, start, user_start, user_end, dates, budget, idx_ho
 def add_hotel_goal_group(problem, start, user_start, user_end, date, day,
                          num_hotels, names, prices, room_types,
                          house_rules, minimum_nights, maximum_occupancy,
-                         review_rate_number, cities, budget):
+                         review_rate_number, cities, budget, data):
 
     arrival_event = Event()
     arrival_event.earliest_time = date + timedelta(seconds=HOTEL_CHECKIN_TIME)
@@ -324,7 +327,8 @@ def add_hotel_goal_group(problem, start, user_start, user_end, date, day,
         hotel = problem.add_episode(start_event, end_event,
                                     HOTEL_BASE_DURATION, None, True)
         hotel.name = names[i]
-        location = problem.add_location(names[i], FAKE_LAT, FAKE_LON)
+        lat, lon = get_city_lat_lon(cities[i], data)
+        location = problem.add_location(names[i], lat, lon)
         hotel.start_location = location
         hotel.end_location = location
 
@@ -406,10 +410,10 @@ def add_transportation(data, problem, user_start, user_end, dates, budget=None):
                                          flight_info['duration'],
                                          flight_info['duration'], True)
             flight.name = flight_info['type'] + flight_info['name']
-            flight.start_location = problem.add_location(flight_info['origin_city'],
-                                                         FAKE_LAT, FAKE_LON)
-            flight.end_location = problem.add_location(flight_info['dest_city'],
-                                                       FAKE_LAT, FAKE_LON)
+            lat, lon = get_city_lat_lon(flight_info['origin_city'], data['structured_ref_info'])
+            flight.start_location = problem.add_location(flight_info['origin_city'], lat, lon)
+            lat, lon = get_city_lat_lon(flight_info['dest_city'], data['structured_ref_info'])
+            flight.end_location = problem.add_location(flight_info['dest_city'], lat, lon)
             # TODO: flight time should be improved, try scheduled time?
             # Right now, this is proving a buffer so that its availability is non-zero
             flight.time_windows = [[flight_info['start_time'] - timedelta(seconds=FLIGHT_BUFFER_TIME),
@@ -537,3 +541,16 @@ def get_restaurant_time_windows(meal, date):
     time_windows.append([start_time, end_time])
     return time_windows
 
+def get_city_lat_lon(city, structured_ref_info):
+    # Estimate a lat lon for the city from attractions, if available,
+    # by averaging over all attractions lat lon
+    if USE_REAL_LAT_LON:
+        for info in structured_ref_info:
+            if info['Info Type'] == 'Attractions':
+                if info['Number'] < 1:
+                    continue
+                if city == info['Structured Content']['City']['0']:
+                    lats = info['Structured Content']['Latitude'].values()
+                    lons = info['Structured Content']['Longitude'].values()
+                    return sum(lats)/len(lats), sum(lons)/len(lons)
+    return FAKE_LAT, FAKE_LON

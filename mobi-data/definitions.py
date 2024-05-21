@@ -266,7 +266,7 @@ class Location(Serializable):
                 "id": self.id,
                 "name": self.name,
                 "lat": self.lat,
-                "lon": self.lon
+                "lng": self.lon
         }
 
 

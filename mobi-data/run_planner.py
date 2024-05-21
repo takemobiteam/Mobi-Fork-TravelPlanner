@@ -12,7 +12,9 @@ import os
 # - Add budget constraint back
 # - Fill in complete plan output information
 # - Pre-filter POI based on constraints?
-# - Multi-destination attractions and restaurants - how to limit to the city? Does provide lat lons work
+# - Multi-destination attractions and restaurants - how to limit to the city? Does provide lat lons work?
+#     - Limit using time windows to specific days -- solution still cross over a bit day boundaries. Is it because timezone?
+# - Problem with using lat lon -- planner cannot insert a first flight activity due to it taking an extreme amount of time, needs round trip, does planner web interface determine the flight already?
 
 EXECUTABLE = "/Users/yuening/mobi/planner/target/planner-0.1-SNAPSHOT-jar-with-dependencies.jar"
 PLANNING_VERBOSE = False
