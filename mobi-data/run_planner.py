@@ -17,6 +17,7 @@ import os
 # - Problem with using lat lon -- planner cannot insert a first flight activity due to it taking an extreme amount of time, needs round trip, does planner web interface determine the flight already?
 
 EXECUTABLE = "/Users/yuening/mobi/planner/target/planner-0.1-SNAPSHOT-jar-with-dependencies.jar"
+EXECUTABLE = "/Users/jiahaoliu/src/planner/target/planner-0.1-SNAPSHOT-jar-with-dependencies.jar"
 PLANNING_VERBOSE = False
 
 def load_jsonl(file_path):
