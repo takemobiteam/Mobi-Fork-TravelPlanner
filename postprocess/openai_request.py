@@ -1,5 +1,6 @@
 import os
 import openai
+from openai import OpenAI
 import math
 import sys
 import time
@@ -16,7 +17,12 @@ KEY_INDEX = 0
 KEY_POOL =  [
    os.environ['OPENAI_API_KEY']
 ]# your key pool
-openai.api_key = KEY_POOL[0]
+# openai.api_key = KEY_POOL[0]
+
+client = OpenAI(
+    # This is the default and can be omitted
+    api_key=os.environ.get("OPENAI_API_KEY"),
+)
 
 
 class TimeoutError(Exception):
@@ -123,19 +129,15 @@ def keep_logprobs_before_eos(tokens, logprobs):
 def catch_openai_api_error(prompt_input: list):
     global KEY_INDEX
     error = sys.exc_info()[0]
-    if error == openai.error.InvalidRequestError:
+    if error == openai.BadRequestError:
         # something is wrong: e.g. prompt too long
         print(f"InvalidRequestError\nPrompt:\n\n{prompt_input}\n\n")
         assert False
-    elif error == openai.error.RateLimitError:
+    elif error == openai.RateLimitError:
         KEY_INDEX = (KEY_INDEX + 1) % len(KEY_POOL)
         openai.api_key = KEY_POOL[KEY_INDEX]
         print("RateLimitError, now change the key. Current key is ", openai.api_key)
-    elif error == openai.error.APIError:
-        KEY_INDEX = (KEY_INDEX + 1) % len(KEY_POOL)
-        openai.api_key = KEY_POOL[KEY_INDEX]
-        print("APIError, now change the key. Current key is ", openai.api_key)
-    elif error == openai.error.AuthenticationError:
+    elif error == openai.AuthenticationError:
         KEY_INDEX = (KEY_INDEX + 1) % len(KEY_POOL)
         openai.api_key = KEY_POOL[KEY_INDEX]
         print("AuthenticationError, now change the key. Current key is ", openai.api_key)
@@ -186,7 +188,7 @@ def prompt_chatgpt(system_input, user_input, temperature,save_path,index,history
     history.append({"role": "user", "content": user_input})
     while True:
         try:
-            completion = limited_execution_time(openai.ChatCompletion.create,
+            completion = limited_execution_time(client.chat.completions.create,
                 model=model_name,
                 prompt=history,
                 temp=temperature)
@@ -197,10 +199,11 @@ def prompt_chatgpt(system_input, user_input, temperature,save_path,index,history
             catch_openai_api_error(user_input)
             time.sleep(1)
 
-    assistant_output = completion['choices'][0]['message']['content']
+    assistant_output = completion.choices[0].message.content
+        
     history.append({"role": "assistant", "content": assistant_output})
-    total_prompt_tokens = completion['usage']['prompt_tokens']
-    total_completion_tokens = completion['usage']['completion_tokens']
+    total_prompt_tokens = completion.usage.prompt_tokens
+    total_completion_tokens = completion.usage.completion_tokens
     with open(save_path,'a+',encoding='utf-8') as f:
         assistant_output = str(index)+"\t"+"\t".join(x for x in assistant_output.split("\n"))
         f.write(assistant_output+'\n')
@@ -235,7 +238,7 @@ JSON\n"""
 
 def build_plan_format_conversion_prompt(directory, set_type='validation',model_name='gpt4',strategy='direct',mode='two-stage'):
     prompt_list = []
-    prefix = """Please assist me in extracting valid information from a given natural language text and reconstructing it in JSON format, as demonstrated in the following example. If transportation details indicate a journey from one city to another (e.g., from A to B), the 'current_city' should be updated to the destination city (in this case, B). Use a ';' to separate different attractions, with each attraction formatted as 'Name, City'. If there's information about transportation, ensure that the 'current_city' aligns with the destination mentioned in the transportation details (i.e., the current city should follow the format 'from A to B'). Also, ensure that all flight numbers and costs are followed by a colon (i.e., 'Flight Number:' and 'Cost:'), consistent with the provided example. Each item should include ['day', 'current_city', 'transportation', 'breakfast', 'attraction', 'lunch', 'dinner', 'accommodation']. Replace non-specific information like 'eat at home/on the road' with '-'. Additionally, delete any '$' symbols.
+    prefix = """Please assist me in extracting valid information from a given natural language text and reconstructing it in JSON format, as demonstrated in the following example. If transportation details indicate a journey from one city to another (e.g., from A to B), the 'current_city' should be updated to the destination city (in this case, B). Use a ';' to separate different attractions, with each attraction formatted as 'Name, City'. If there's information about transportation, ensure that the 'current_city' aligns with the destination mentioned in the transportation details (i.e., the current city should follow the format 'from A to B'). Also, ensure that all flight numbers and costs are followed by a colon (i.e., 'Flight Number:' and 'Cost:'), consistent with the provided example. Each item should include ['day', 'current_city', 'transportation', 'breakfast', 'attraction', 'lunch', 'dinner', 'accommodation']. Replace non-specific information like 'eat at home/on the road' with '-'. Additionally, delete any '$' symbols. Please ONLY reply the json string
 -----EXAMPLE-----
  [{{
         "days": 1,
@@ -283,6 +286,7 @@ def build_plan_format_conversion_prompt(directory, set_type='validation',model_n
         suffix = f'_{strategy}'
     for idx in tqdm(idx_number_list):
         generated_plan = json.load(open(f'{directory}/{set_type}/generated_plan_{idx}.json'))
+        # print(generated_plan[-1].keys())
         if generated_plan[-1][f'{model_name}{suffix}_{mode}_results'] and generated_plan[-1][f'{model_name}{suffix}_{mode}_results'] != "":
             prompt = prefix + "Text:\n"+generated_plan[-1][f'{model_name}{suffix}_{mode}_results']+"\nJSON:\n"
         else:

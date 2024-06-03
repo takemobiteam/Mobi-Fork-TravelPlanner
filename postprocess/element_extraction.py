@@ -21,7 +21,6 @@ if __name__ == '__main__':
     elif args.mode == 'sole-planning':
         suffix = f'_{args.strategy}'
 
-
     results = open(f'{args.tmp_dir}/{args.set_type}_{args.model_name}{suffix}_{args.mode}.txt','r').read().strip().split('\n')
     
     if args.set_type == 'train':
@@ -39,7 +38,8 @@ if __name__ == '__main__':
                 result = results[idx-1].split('```json')[1].split('```')[0]
             except:
                 print(f"{idx}:\n{results[idx-1]}\nThis plan cannot be parsed. The plan has to follow the format ```json [The generated json format plan]```(The common gpt-4-preview-1106 json format). Please modify it manualy when this occurs.")
-                break
+                # break
+                continue
             try:
                 if args.mode == 'two-stage':
                     generated_plan[-1][f'{args.model_name}{suffix}_{args.mode}_parsed_results'] = eval(result)
@@ -47,12 +47,13 @@ if __name__ == '__main__':
                     generated_plan[-1][f'{args.model_name}{suffix}_{args.mode}_parsed_results'] = eval(result)
             except:
                 print(f"{idx}:\n{result}\n This is an illegal json format. Please modify it manualy when this occurs.")
-                break
+                # break
+                continue
         else:
             if args.mode == 'two-stage':
                 generated_plan[-1][f'{args.model_name}{suffix}_{args.mode}_parsed_results'] = None
             else:
                 generated_plan[-1][f'{args.model_name}{suffix}_{args.mode}_parsed_results'] = None
-  
+
         with open(f'{args.output_dir}/{args.set_type}/generated_plan_{idx}.json','w') as f:
             json.dump(generated_plan,f)

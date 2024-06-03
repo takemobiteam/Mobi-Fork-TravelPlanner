@@ -638,7 +638,9 @@ if __name__ == '__main__':
     parser.add_argument("--model_name", type=str, default="gpt-3.5-turbo-1106")
     parser.add_argument("--output_dir", type=str, default="./")
     args = parser.parse_args()
-    if args.set_type == 'validation':
+    if args.set_type == 'train':
+        query_data_list  = load_dataset('osunlp/TravelPlanner','train')['train']
+    elif args.set_type == 'validation':
         query_data_list  = load_dataset('osunlp/TravelPlanner','validation')['validation']
     elif args.set_type == 'test':
         query_data_list  = load_dataset('osunlp/TravelPlanner','test')['test']
